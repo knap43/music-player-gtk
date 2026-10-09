@@ -9,7 +9,7 @@ from `playerctl`, media keys, or the shell's media controls.
 
 ## Features
 
-- **Formats:** MP3, FLAC and WebM.
+- **Formats:** MP3, FLAC, Ogg Vorbis, Opus and WebM.
 - **Folders are albums:** Amber scans a music folder recursively, and every
   folder that directly contains audio files is one album. The album is named
   after the folder, and its tracks are ordered by file name, with numbers
@@ -35,7 +35,7 @@ from `playerctl`, media keys, or the shell's media controls.
   *Previous* retraces the shuffled history.
 - **Artwork:** the album folder's own image first (`cover.jpg`, `folder.png`,
   `front.jpg` and the like), then art embedded in the tracks (ID3 `APIC`,
-  FLAC pictures, Matroska attachments with TagLib ≥ 2.2), then whatever the
+  FLAC and Ogg/Opus pictures, Matroska attachments with TagLib ≥ 2.2), then whatever the
   stream itself carries.
 - **Lyrics, drawn over the blurred cover:** a matching `.lrc` file next to the
   track, embedded synchronised lyrics (ID3 `SYLT`), or embedded plain lyrics
@@ -84,7 +84,7 @@ cd packaging/arch && makepkg -si
 ```
 
 Requirements: GTK ≥ 4.12, gtkmm ≥ 4.10, libadwaita ≥ 1.5, GStreamer ≥ 1.20
-with the base and good plugins (MP3, FLAC and WebM decoding), TagLib ≥ 1.12
+with the base and good plugins (MP3, FLAC, Ogg, Opus and WebM decoding), TagLib ≥ 1.12
 (2.x recommended) and a C++17 compiler.
 
 ## Usage

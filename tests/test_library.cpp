@@ -71,6 +71,8 @@ TEST(foldersAreAlbums)
     writeFile(root + "/Mixed/1 - one.flac", "");
     // A sub-folder is an album of its own.
     writeFile(root + "/Mixed/CD2/a.webm", "");
+    writeFile(root + "/Mixed/CD2/b.ogg", "");
+    writeFile(root + "/Mixed/CD2/c.opus", "");
     // Files directly in the root form an album too; other files are ignored.
     writeFile(root + "/loose.mp3", "");
     writeFile(root + "/Empty/notes.txt", "");
@@ -102,6 +104,7 @@ TEST(foldersAreAlbums)
     CHECK_EQ(albums[2].location, std::string("Artist B"));
     CHECK_EQ(albums[0].title, Paths::dirName(root));
     CHECK_EQ(albums[4].location, std::string("Mixed"));
+    CHECK_EQ(albums[4].tracks.size(), 3u);
 
     const Album &mixed = albums[3];
     CHECK_EQ(mixed.title, std::string("Mixed"));

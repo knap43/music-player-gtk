@@ -402,7 +402,7 @@ void MainWindow::chooseLibraryFolder()
 void MainWindow::addFilesToQueue()
 {
     GtkFileFilter *audio = gtk_file_filter_new();
-    gtk_file_filter_set_name(audio, "Audio files (MP3, FLAC, WebM)");
+    gtk_file_filter_set_name(audio, "Audio files (MP3, FLAC, Ogg, Opus, WebM)");
     for (const std::string &suffix : Formats::suffixes())
         gtk_file_filter_add_suffix(audio, suffix.c_str());
     GListStore *filters = g_list_store_new(GTK_TYPE_FILE_FILTER);
@@ -543,7 +543,7 @@ void MainWindow::showAbout()
     adw_about_dialog_set_developer_name(ADW_ABOUT_DIALOG(about), "knap43");
     adw_about_dialog_set_comments(
         ADW_ABOUT_DIALOG(about),
-        "A small player for local MP3, FLAC and WebM files.\n\n"
+        "A small player for local MP3, FLAC, Ogg, Opus and WebM files.\n\n"
         "Folders are albums. Lyrics come from a matching .lrc file or from the tags; "
         "click a synced line to jump to it. Controllable through MPRIS (playerctl -p amber).");
     adw_dialog_present(about, m_window);

@@ -3,7 +3,7 @@
 pkgname=amber-player-git
 pkgver=r1
 pkgrel=1
-pkgdesc="GTK 4 / libadwaita music player for local MP3, FLAC and WebM files, with lyrics over blurred artwork and MPRIS"
+pkgdesc="GTK 4 / libadwaita music player for local MP3, FLAC, Ogg, Opus and WebM files, with lyrics over blurred artwork and MPRIS"
 arch=('x86_64' 'aarch64')
 _url="https://github.com/knap43/music-player-gtk"
 url="$_url"

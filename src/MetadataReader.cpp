@@ -9,6 +9,7 @@
 #include <flacpicture.h>
 #include <id3v2tag.h>
 #include <mpegfile.h>
+#include <xiphcomment.h>
 #include <synchronizedlyricsframe.h>
 #include <tag.h>
 #include <taglib.h>
@@ -144,6 +145,27 @@ Image flacCover(const std::string &path)
     return imageFromVector(fallback);
 }
 
+// Ogg Vorbis / Opus: METADATA_BLOCK_PICTURE in the Xiph comment.
+Image xiphCover(const std::string &path)
+{
+    const TagLib::FileRef ref(path.c_str(), false);
+    if (ref.isNull())
+        return {};
+    auto *xiph = dynamic_cast<TagLib::Ogg::XiphComment *>(ref.tag());
+    if (!xiph)
+        return {};
+    TagLib::ByteVector fallback;
+    for (TagLib::FLAC::Picture *pic : xiph->pictureList()) {
+        if (pic->type() == TagLib::FLAC::Picture::FrontCover) {
+            if (Image image = imageFromVector(pic->data()))
+                return image;
+        }
+        if (fallback.isEmpty())
+            fallback = pic->data();
+    }
+    return imageFromVector(fallback);
+}
+
 Lyrics mpegSynchronisedLyrics(const std::string &path)
 {
     TagLib::MPEG::File file(path.c_str(), false);
@@ -208,6 +230,8 @@ Image readEmbeddedCover(const std::string &path)
         image = mpegCover(path);
     else if (suffix == "flac")
         image = flacCover(path);
+    else if (suffix == "ogg" || suffix == "oga" || suffix == "opus")
+        image = xiphCover(path);
 #if TAGLIB_MAJOR_VERSION >= 2
     if (!image)
         image = genericCover(path);

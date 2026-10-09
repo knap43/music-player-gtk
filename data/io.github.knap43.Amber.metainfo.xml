@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.knap43.Amber</id>
   <name>Amber</name>
-  <summary>Play local MP3, FLAC and WebM files</summary>
+  <summary>Play local MP3, FLAC, Ogg, Opus and WebM files</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <developer id="io.github.knap43">
     <name>knap43</name>

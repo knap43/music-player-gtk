@@ -25,7 +25,7 @@ namespace Formats {
 
 const std::vector<std::string> &suffixes()
 {
-    static const std::vector<std::string> list{"mp3", "flac", "webm"};
+    static const std::vector<std::string> list{"mp3", "flac", "ogg", "oga", "opus", "webm"};
     return list;
 }
 

@@ -173,11 +173,11 @@ void LibraryPanel::showEmpty(const std::string &root)
     if (root.empty()) {
         adw_status_page_set_title(ADW_STATUS_PAGE(m_emptyPage), "No Music Folder");
         adw_status_page_set_description(ADW_STATUS_PAGE(m_emptyPage),
-                                        "Pick the folder that holds your music. MP3, FLAC and WebM files are supported.");
+                                        "Pick the folder that holds your music. MP3, FLAC, Ogg, Opus and WebM files are supported.");
     } else {
         adw_status_page_set_title(ADW_STATUS_PAGE(m_emptyPage), "No Music Found");
         gchar *escaped = g_markup_escape_text(root.c_str(), -1);
-        const std::string text = std::string("No MP3, FLAC or WebM files were found in ") + escaped;
+        const std::string text = std::string("No MP3, FLAC, Ogg, Opus or WebM files were found in ") + escaped;
         g_free(escaped);
         adw_status_page_set_description(ADW_STATUS_PAGE(m_emptyPage), text.c_str());
     }

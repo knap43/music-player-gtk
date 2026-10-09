@@ -248,7 +248,8 @@ Glib::VariantBase Mpris::rootProperty(const Glib::ustring &name) const
     if (name == "SupportedUriSchemes")
         return strings({"file"});
     if (name == "SupportedMimeTypes")
-        return strings({"audio/mpeg", "audio/flac", "audio/x-flac", "audio/webm", "video/webm"});
+        return strings({"audio/mpeg", "audio/flac", "audio/x-flac", "audio/ogg", "audio/x-vorbis+ogg",
+                        "audio/vorbis", "audio/x-opus+ogg", "audio/opus", "audio/webm", "video/webm"});
     return {};
 }
 

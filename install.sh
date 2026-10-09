@@ -47,7 +47,7 @@ fi
 
 # Dependencies.
 if command -v pacman >/dev/null; then
-    deps=(base-devel meson gtkmm-4.0 libadwaita taglib gstreamer gst-plugins-base gst-plugins-good)
+    deps=(base-devel meson gtkmm-4.0 libadwaita taglib gstreamer gst-plugins-base gst-plugins-good desktop-file-utils)
     missing=()
     for p in "${deps[@]}"; do
         pacman -Qq "$p" >/dev/null 2>&1 || pacman -Qqg "$p" >/dev/null 2>&1 || missing+=("$p")
