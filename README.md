@@ -49,6 +49,17 @@ from `playerctl`, media keys, or the shell's media controls.
 - **Adaptive layout:** below ~960 px the library becomes an overlay sidebar
   (<kbd>F9</kbd> or the sidebar button).
 
+## Quick install
+
+```sh
+./install.sh            # system-wide, into /usr/local
+./install.sh --user     # just for you, into ~/.local
+./install.sh --uninstall [--user]
+```
+
+The script installs any missing build dependencies with pacman (on Arch),
+builds, runs the tests and installs the binary, desktop entry and icon.
+
 ## Building on Arch Linux
 
 ```sh
