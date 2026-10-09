@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Amber
+GenericName=Music Player
+Comment=Play local MP3, FLAC, Ogg, Opus and WebM files
+Exec=amber-player %F
+Icon=io.github.knap43.Amber
+Terminal=false
+Categories=AudioVideo;Audio;Player;GTK;GNOME;
+MimeType=audio/mpeg;audio/flac;audio/x-flac;audio/ogg;audio/x-vorbis+ogg;audio/vorbis;audio/x-opus+ogg;audio/opus;audio/webm;video/webm;
+Keywords=music;audio;player;mp3;flac;ogg;vorbis;opus;webm;lyrics;
+StartupNotify=true
+DBusActivatable=false

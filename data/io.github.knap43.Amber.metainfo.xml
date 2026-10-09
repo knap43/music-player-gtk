@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.knap43.Amber</id>
+  <name>Amber</name>
+  <summary>Play local MP3, FLAC, Ogg, Opus and WebM files</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <developer id="io.github.knap43">
+    <name>knap43</name>
+  </developer>
+  <description>
+    <p>
+      A small music player for local files. Every folder is an album, lyrics
+      from .lrc files or tags are drawn over the blurred cover and follow
+      playback, and the player can be controlled through MPRIS, for example
+      with playerctl or the desktop's media keys.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.knap43.Amber.desktop</launchable>
+  <provides>
+    <binary>amber-player</binary>
+  </provides>
+  <releases>
+    <release version="2.0.0" date="2026-10-09">
+      <description><p>Rewritten with GTK 4 and libadwaita; MPRIS support.</p></description>
+    </release>
+  </releases>
+</component>
