@@ -1,8 +1,68 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24">
-  <rect width="24" height="24" fill="#e1a34f"/>
-  <g transform="translate(3.36 3.36) scale(0.72)" fill="#1a1a1a">
-    <ellipse cx="8" cy="17.5" rx="3.8" ry="2.8" transform="rotate(-20 8 17.5)"/>
-    <rect x="10.6" y="3.5" width="1.8" height="14"/>
-    <polygon points="12.4,3.5 18.5,6.5 18.5,10 12.4,7.2"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <!-- Disc body: Adwaita "dark" tones, lit from the top left. -->
+    <radialGradient id="disc" cx="44" cy="40" r="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3d3846"/>
+      <stop offset="0.55" stop-color="#241f31"/>
+      <stop offset="1" stop-color="#1a1621"/>
+    </radialGradient>
+    <!-- Disc edge (the "side" GNOME icons show below the face). -->
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3d3846"/>
+      <stop offset="0.5" stop-color="#5e5c64"/>
+      <stop offset="1" stop-color="#3d3846"/>
+    </linearGradient>
+    <!-- Amber label. -->
+    <radialGradient id="label" cx="56" cy="54" r="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8cf86"/>
+      <stop offset="0.6" stop-color="#e1a34f"/>
+      <stop offset="1" stop-color="#b8752a"/>
+    </radialGradient>
+    <!-- Light sweeping across the grooves. -->
+    <linearGradient id="sheen" x1="24" y1="20" x2="104" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.42" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#f8cf86" stop-opacity="0.32"/>
+      <stop offset="0.58" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="face"><circle cx="64" cy="60" r="54"/></clipPath>
+  </defs>
+
+  <!-- Soft contact shadow and disc thickness. -->
+  <ellipse cx="64" cy="118" rx="44" ry="5" fill="#000" opacity="0.18"/>
+  <circle cx="64" cy="64" r="54" fill="url(#edge)"/>
+
+  <!-- Face, with a light rim so it holds up on dark panels. -->
+  <circle cx="64" cy="60" r="54" fill="url(#disc)"/>
+  <circle cx="64" cy="60" r="53.25" fill="none" stroke="#77767b" stroke-opacity="0.55" stroke-width="1.5"/>
+  <g clip-path="url(#face)" fill="none" stroke-linecap="round">
+    <!-- Grooves. -->
+    <g stroke="#ffffff" stroke-opacity="0.07" stroke-width="1">
+      <circle cx="64" cy="60" r="49"/>
+      <circle cx="64" cy="60" r="45"/>
+      <circle cx="64" cy="60" r="41"/>
+      <circle cx="64" cy="60" r="37"/>
+      <circle cx="64" cy="60" r="33"/>
+    </g>
+    <g stroke="#000000" stroke-opacity="0.25" stroke-width="1">
+      <circle cx="64" cy="60" r="47"/>
+      <circle cx="64" cy="60" r="39"/>
+    </g>
+    <!-- Reflections: two opposing wedges of light. -->
+    <path d="M64 60 L28 14 A54 54 0 0 1 58 6.3 Z" fill="url(#sheen)" stroke="none"/>
+    <path d="M64 60 L100 106 A54 54 0 0 1 70 113.7 Z" fill="url(#sheen)" stroke="none" opacity="0.7"/>
   </g>
+  <!-- Rim highlight on the top edge of the face. -->
+  <path d="M18.5 32 A54 54 0 0 1 109.5 32" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Label with a thin dark ring, as on a pressed record. -->
+  <circle cx="64" cy="60" r="23" fill="#14111a" opacity="0.6"/>
+  <circle cx="64" cy="60" r="21.5" fill="url(#label)"/>
+  <circle cx="64" cy="60" r="16" fill="none" stroke="#8f5a1c" stroke-opacity="0.35" stroke-width="1"/>
+  <path d="M48.5 52 A17 17 0 0 1 64 43" fill="none" stroke="#fff6e5" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Spindle hole. -->
+  <circle cx="64" cy="60" r="3.6" fill="#1a1621"/>
+  <circle cx="64" cy="60.6" r="3.6" fill="none" stroke="#fff6e5" stroke-opacity="0.35" stroke-width="0.8"/>
 </svg>

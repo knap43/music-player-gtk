@@ -64,6 +64,8 @@ install_data('data/' + app_id + '.desktop', install_dir: get_option('datadir') /
 install_data('data/' + app_id + '.metainfo.xml', install_dir: get_option('datadir') / 'metainfo')
 install_data('data/' + app_id + '.svg',
              install_dir: get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps')
+install_data('data/' + app_id + '-symbolic.svg',
+             install_dir: get_option('datadir') / 'icons' / 'hicolor' / 'symbolic' / 'apps')
 
 foreach t : ['lyrics', 'playqueue', 'library']
   test(t, executable('test_' + t, 'tests/test_' + t + '.cpp', dependencies: core_dep))
