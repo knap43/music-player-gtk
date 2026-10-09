@@ -1,0 +1,36 @@
+# Builds the latest commit of the default branch:  makepkg -si
+# Set _url to wherever this repository lives.
+pkgname=amber-player-git
+pkgver=r1
+pkgrel=1
+pkgdesc="GTK 4 / libadwaita music player for local MP3, FLAC and WebM files, with lyrics over blurred artwork and MPRIS"
+arch=('x86_64' 'aarch64')
+_url="https://github.com/knap43/music-player-gtk"
+url="$_url"
+license=('unknown')
+depends=('gtkmm-4.0' 'libadwaita' 'gstreamer' 'gst-plugins-base' 'gst-plugins-good' 'taglib')
+makedepends=('meson' 'git')
+optdepends=('gst-libav: extra decoders'
+            'playerctl: control playback from the command line')
+provides=('amber-player')
+conflicts=('amber-player')
+source=("$pkgname::git+$_url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  arch-meson "$pkgname" build
+  meson compile -C build
+}
+
+check() {
+  meson test -C build --print-errorlogs
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}
