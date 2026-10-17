@@ -24,7 +24,9 @@ const char *const kStyle = R"(
 .queue-row .indicator { min-width: 16px; }
 .queue-row.current .title { font-weight: bold; }
 .queue-heading { font-weight: bold; }
-listview.queue row:drop(active) { box-shadow: inset 0 2px alpha(currentColor, 0.5); }
+listview.queue:drop(active) { box-shadow: none; }
+listview.queue > row.drop-above { box-shadow: inset 0 3px #e1a34f; }
+listview.queue > row.drop-below { box-shadow: inset 0 -3px #e1a34f; }
 .library-row-thumb { border-radius: 6px; }
 )";
 

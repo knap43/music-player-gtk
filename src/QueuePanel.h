@@ -13,6 +13,7 @@ class QueuePanel : public Gtk::Box
 {
 public:
     explicit QueuePanel(PlayQueue &queue);
+    ~QueuePanel() override;
 
     void setPlaying(bool playing);
     void scrollToCurrent();
@@ -31,8 +32,16 @@ private:
     void updateInfo();
     void updateButtons();
     bool handleDrop(const GValue *value, int row);
-    std::vector<uint64_t> dragIdsFor(int row) const;
+    std::vector<uint64_t> dragIdsFor(uint64_t id) const;
     void bindRow(QueueRow &row, int position);
+
+    // Drops on the list: where a point (in list coordinates) would insert,
+    // -1 meaning the end, plus the row widget to mark and on which edge.
+    int dropRowAt(double y, GtkWidget **item, bool *below) const;
+    void updateDropIndicator(double y);
+    void clearDropIndicator();
+    void setAutoscroll(double y);
+    void stopAutoscroll();
 
     void onRowsInserted(int row, int count);
     void onRowsRemoved(int row, int count);
@@ -49,4 +58,9 @@ private:
     Gtk::ScrolledWindow m_scroller;
     Gtk::ListView m_list;
     bool m_playing = false;
+
+    GtkWidget *m_dropItem = nullptr; // weak
+    double m_dropY = 0;
+    double m_autoscrollSpeed = 0;
+    guint m_autoscrollSource = 0;
 };

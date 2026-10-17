@@ -177,6 +177,28 @@ TEST(signalsMirrorStructure)
     CHECK_EQ(events[3], std::string("reset"));
 }
 
+TEST(moveMirrorsAsRemoveAndInsert)
+{
+    PlayQueue q;
+    q.append(makeTracks(5));
+    std::vector<std::string> events;
+    q.signalRowsInserted.connect([&](int row, int n) { events.push_back("ins " + std::to_string(row) + " " + std::to_string(n)); });
+    q.signalRowsRemoved.connect([&](int row, int n) { events.push_back("rm " + std::to_string(row) + " " + std::to_string(n)); });
+    q.signalReset.connect([&] { events.push_back("reset"); });
+    CHECK_EQ(q.moveRowsTo({1, 3}, 5), 3);
+    CHECK_EQ(q.trackAt(3).title, std::string("t1"));
+    CHECK_EQ(q.trackAt(4).title, std::string("t3"));
+    CHECK_EQ(events.size(), 3u);
+    CHECK_EQ(events[0], std::string("rm 3 1"));
+    CHECK_EQ(events[1], std::string("rm 1 1"));
+    CHECK_EQ(events[2], std::string("ins 3 2"));
+    // Dropping a block onto its own place changes nothing.
+    events.clear();
+    CHECK_EQ(q.moveRowsTo({3, 4}, 3), 3);
+    CHECK_EQ(q.moveRowsTo({3, 4}, 5), 3);
+    CHECK(events.empty());
+}
+
 int main()
 {
     return check::run();

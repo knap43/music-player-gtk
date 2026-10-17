@@ -41,6 +41,7 @@ private:
     GtkWidget *buildAlbumRow(int index);
     void populateTracks(GtkWidget *albumRow, int index);
     void applyFilter();
+    void applyTrackVisibility(int index);
     bool rowMatches(GtkListBoxRow *row) const;
     std::vector<Track> tracksOf(GtkWidget *row) const;
     void showMenu(GtkWidget *row, double x, double y);
@@ -59,7 +60,17 @@ private:
     GtkWidget *m_stats = nullptr;
 
     std::vector<Album> m_albums;
-    std::vector<std::string> m_haystacks; // case-folded search text per album
+    // Case-folded search text per track: its album's title and location, then
+    // its own title, artist and file name.
+    std::vector<std::vector<std::string>> m_haystacks;
+    std::vector<GtkWidget *> m_albumRows;
+    std::vector<std::vector<GtkWidget *>> m_trackRows; // created on first expansion
+    // Filter results: whether each album is shown, and which of its tracks
+    // (empty = all of them).
+    std::vector<char> m_albumVisible;
+    std::vector<std::vector<char>> m_trackVisible;
+    std::vector<char> m_autoExpanded; // expanded by the filter, not the user
+    std::vector<std::string> m_terms;
     std::unordered_map<std::string, GtkWidget *> m_thumbs;  // album key -> GtkImage
     std::unordered_map<std::string, Image> m_thumbCache;    // survives list rebuilds
     std::string m_filter;

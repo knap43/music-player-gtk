@@ -160,16 +160,28 @@ int PlayQueue::moveRowsTo(std::vector<int> rows, int destination)
         if (r < destination)
             ++before;
 
+    const int target = destination - before;
+    // A contiguous block dropped onto its own place: nothing to do.
+    if (rows.back() - rows.front() + 1 == int(rows.size()) && rows.front() == target)
+        return target;
+
+    // Linear mode with no current entry: keep resuming from the same entry.
+    const uint64_t resumeId = (m_currentId == 0 && m_resumeRow < count()) ? idAt(m_resumeRow) : 0;
+
+    // Mirror the move as removals and one insertion rather than a reset, so
+    // views keep their scroll position and the rows that did not move.
     std::vector<Entry> moved;
     for (int i = int(rows.size()) - 1; i >= 0; --i) {
-        moved.insert(moved.begin(), m_entries[size_t(rows[size_t(i)])]);
-        m_entries.erase(m_entries.begin() + rows[size_t(i)]);
+        const int row = rows[size_t(i)];
+        moved.insert(moved.begin(), m_entries[size_t(row)]);
+        m_entries.erase(m_entries.begin() + row);
+        signalRowsRemoved.emit(row, 1);
     }
-    const int target = destination - before;
     m_entries.insert(m_entries.begin() + target, moved.begin(), moved.end());
+    signalRowsInserted.emit(target, int(moved.size()));
 
-    signalReset.emit();
-    signalCurrentChanged.emit(currentRow(), m_currentId);
+    if (resumeId != 0)
+        m_resumeRow = rowOfId(resumeId);
     signalContentsChanged.emit();
     return target;
 }

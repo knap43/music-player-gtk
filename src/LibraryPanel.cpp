@@ -19,6 +19,30 @@ LibraryPanel *panelOf(GtkWidget *row)
     return static_cast<LibraryPanel *>(g_object_get_data(G_OBJECT(row), kPanelKey));
 }
 
+// Case-folded search words; every one of them has to match.
+std::vector<std::string> searchTerms(const std::string &folded)
+{
+    std::vector<std::string> terms;
+    size_t i = 0;
+    while (i < folded.size()) {
+        const size_t start = folded.find_first_not_of(" \t\r\n", i);
+        if (start == std::string::npos)
+            break;
+        const size_t end = folded.find_first_of(" \t\r\n", start);
+        terms.push_back(folded.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        i = end == std::string::npos ? folded.size() : end;
+    }
+    return terms;
+}
+
+bool containsAll(const std::string &haystack, const std::vector<std::string> &terms)
+{
+    for (const std::string &term : terms)
+        if (haystack.find(term) == std::string::npos)
+            return false;
+    return true;
+}
+
 std::string trackCountText(size_t n)
 {
     return n == 1 ? "1 track" : std::to_string(n) + " tracks";
@@ -63,6 +87,7 @@ LibraryPanel::LibraryPanel()
     g_signal_connect(m_searchEntry, "search-changed", G_CALLBACK(+[](GtkSearchEntry *entry, gpointer self) {
                          auto *panel = static_cast<LibraryPanel *>(self);
                          panel->m_filter = Text::casefold(Text::trimmed(gtk_editable_get_text(GTK_EDITABLE(entry))));
+                         panel->m_terms = searchTerms(panel->m_filter);
                          panel->applyFilter();
                      }),
                      this);
@@ -215,18 +240,27 @@ void LibraryPanel::setAlbums(const std::vector<Album> &albums)
     m_scanning = false;
     m_albums = albums;
     m_thumbs.clear();
-    m_haystacks.clear();
-    m_haystacks.reserve(m_albums.size());
-    for (const Album &album : m_albums) {
-        std::string text = album.title + "\n" + album.location;
+    m_haystacks.assign(m_albums.size(), {});
+    for (size_t i = 0; i < m_albums.size(); ++i) {
+        const Album &album = m_albums[i];
+        const std::string albumText = Text::casefold(album.title + "\n" + album.location);
         for (const Track &t : album.tracks)
-            text += "\n" + t.displayTitle() + "\n" + t.artist;
-        m_haystacks.push_back(Text::casefold(text));
+            m_haystacks[i].push_back(albumText + "\n"
+                                     + Text::casefold(t.displayTitle() + "\n" + t.artist + "\n"
+                                                      + Paths::fileName(t.path)));
     }
+    m_albumRows.clear();
+    m_trackRows.assign(m_albums.size(), {});
+    m_albumVisible.assign(m_albums.size(), 1);
+    m_trackVisible.assign(m_albums.size(), {});
+    m_autoExpanded.assign(m_albums.size(), 0);
 
     gtk_list_box_remove_all(GTK_LIST_BOX(m_list));
-    for (int i = 0; i < int(m_albums.size()); ++i)
-        gtk_list_box_append(GTK_LIST_BOX(m_list), buildAlbumRow(i));
+    for (int i = 0; i < int(m_albums.size()); ++i) {
+        GtkWidget *row = buildAlbumRow(i);
+        m_albumRows.push_back(row);
+        gtk_list_box_append(GTK_LIST_BOX(m_list), row);
+    }
     applyFilter();
 }
 
@@ -327,7 +361,9 @@ void LibraryPanel::populateTracks(GtkWidget *albumRow, int index)
         attachDragSource(row);
         attachContextMenu(row);
         adw_expander_row_add_row(ADW_EXPANDER_ROW(albumRow), row);
+        m_trackRows[size_t(index)].push_back(row);
     }
+    applyTrackVisibility(index);
 }
 
 std::vector<Track> LibraryPanel::tracksOf(GtkWidget *row) const
@@ -348,8 +384,18 @@ void LibraryPanel::attachDragSource(GtkWidget *row)
 {
     GtkDragSource *source = gtk_drag_source_new();
     gtk_drag_source_set_actions(source, GDK_ACTION_COPY);
-    g_signal_connect(source, "prepare", G_CALLBACK(+[](GtkDragSource *src, double, double, gpointer) {
+    g_signal_connect(source, "prepare", G_CALLBACK(+[](GtkDragSource *src, double x, double y, gpointer) {
                          GtkWidget *widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(src));
+                         // An expanded album row contains its track rows, so a drag
+                         // starting on a track reaches the album's drag source too.
+                         // Leave that drag to the track's own source.
+                         if (indexOf(widget, kTrackKey) < 0) {
+                             GtkWidget *picked = gtk_widget_pick(
+                                 widget, x, y, GtkPickFlags(GTK_PICK_INSENSITIVE | GTK_PICK_NON_TARGETABLE));
+                             for (GtkWidget *w = picked; w && w != widget; w = gtk_widget_get_parent(w))
+                                 if (g_object_get_data(G_OBJECT(w), kTrackKey))
+                                     return static_cast<GdkContentProvider *>(nullptr);
+                         }
                          LibraryPanel *panel = panelOf(widget);
                          std::vector<std::string> paths;
                          for (const Track &t : panel->tracksOf(widget))
@@ -416,23 +462,64 @@ void LibraryPanel::setThumbnail(const std::string &albumKey, const Image &thumbn
 
 bool LibraryPanel::rowMatches(GtkListBoxRow *row) const
 {
-    if (m_filter.empty())
-        return true;
     const int index = indexOf(GTK_WIDGET(row), kAlbumKey);
-    return index >= 0 && index < int(m_haystacks.size())
-           && m_haystacks[size_t(index)].find(m_filter) != std::string::npos;
+    return index >= 0 && index < int(m_albumVisible.size()) && m_albumVisible[size_t(index)];
+}
+
+void LibraryPanel::applyTrackVisibility(int index)
+{
+    const auto &visible = m_trackVisible[size_t(index)];
+    const auto &rows = m_trackRows[size_t(index)];
+    for (size_t j = 0; j < rows.size(); ++j)
+        gtk_widget_set_visible(rows[j], visible.empty() || (j < visible.size() && visible[j]));
 }
 
 void LibraryPanel::applyFilter()
 {
+    // A single character matches too much to be worth expanding albums for.
+    const bool expandPartial = g_utf8_strlen(m_filter.c_str(), -1) >= 2;
+    bool any = false;
+    for (size_t i = 0; i < m_albums.size(); ++i) {
+        std::vector<char> tracks;
+        bool shown = m_terms.empty();
+        if (!shown) {
+            size_t matches = 0;
+            tracks.resize(m_haystacks[i].size());
+            for (size_t j = 0; j < tracks.size(); ++j) {
+                tracks[j] = containsAll(m_haystacks[i][j], m_terms);
+                matches += tracks[j] ? 1 : 0;
+            }
+            shown = matches > 0;
+            // Every track matches (say, by album or artist): show the album as is.
+            if (matches == tracks.size() || !expandPartial)
+                tracks.clear();
+        }
+        m_albumVisible[i] = shown;
+        m_trackVisible[i] = std::move(tracks);
+        any = any || shown;
+
+        // Open albums where only some tracks match, so the matches show;
+        // close them again once the search no longer needs them open.
+        GtkWidget *row = i < m_albumRows.size() ? m_albumRows[i] : nullptr;
+        if (!row)
+            continue;
+        const bool partial = shown && !m_trackVisible[i].empty();
+        const bool expanded = adw_expander_row_get_expanded(ADW_EXPANDER_ROW(row));
+        if (partial && !expanded) {
+            m_autoExpanded[i] = 1;
+            adw_expander_row_set_expanded(ADW_EXPANDER_ROW(row), TRUE); // populates the tracks
+        } else if (!partial && m_autoExpanded[i]) {
+            m_autoExpanded[i] = 0;
+            adw_expander_row_set_expanded(ADW_EXPANDER_ROW(row), FALSE);
+        }
+        applyTrackVisibility(int(i));
+    }
+
     gtk_list_box_invalidate_filter(GTK_LIST_BOX(m_list));
     if (m_albums.empty()) {
         if (!m_scanning && g_strcmp0(gtk_stack_get_visible_child_name(GTK_STACK(m_stack)), "list") == 0)
             gtk_stack_set_visible_child_name(GTK_STACK(m_stack), "empty");
         return;
     }
-    bool any = m_filter.empty();
-    for (size_t i = 0; !any && i < m_haystacks.size(); ++i)
-        any = m_haystacks[i].find(m_filter) != std::string::npos;
     gtk_stack_set_visible_child_name(GTK_STACK(m_stack), any ? "list" : "no-results");
 }

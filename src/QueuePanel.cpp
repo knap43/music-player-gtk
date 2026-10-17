@@ -3,6 +3,17 @@
 #include <adwaita.h>
 
 #include <algorithm>
+#include <cmath>
+
+namespace {
+
+// Set on each QueueRow's widget, pointing back at the QueueRow.
+const char *const kRowKey = "amber-queue-row";
+// Distance from the list's top or bottom edge at which drags start scrolling.
+constexpr double kAutoscrollEdge = 48.0;
+constexpr double kAutoscrollMaxStep = 18.0; // pixels per frame
+
+} // namespace
 
 // One row of the queue list.
 class QueueRow : public Gtk::Box
@@ -39,30 +50,24 @@ public:
         gtk_drag_source_set_actions(source, GDK_ACTION_COPY);
         g_signal_connect(source, "prepare", G_CALLBACK(+[](GtkDragSource *, double, double, gpointer self) {
                              auto *row = static_cast<QueueRow *>(self);
-                             if (row->m_position < 0)
+                             if (row->m_id == 0)
                                  return static_cast<GdkContentProvider *>(nullptr);
-                             return DragData::forQueueIds(row->m_panel.dragIdsFor(row->m_position));
+                             return DragData::forQueueIds(row->m_panel.dragIdsFor(row->m_id));
                          }),
                          this);
         DragData::useWidgetAsIcon(source, GTK_WIDGET(gobj()));
         gtk_widget_add_controller(GTK_WIDGET(gobj()), GTK_EVENT_CONTROLLER(source));
 
-        GtkDropTarget *target = DragData::newDropTarget();
-        g_signal_connect(target, "drop", G_CALLBACK(+[](GtkDropTarget *, const GValue *value, double, double y,
-                                                         gpointer self) -> gboolean {
-                             auto *row = static_cast<QueueRow *>(self);
-                             if (row->m_position < 0)
-                                 return FALSE;
-                             const int at = row->m_position + (y > row->get_height() / 2.0 ? 1 : 0);
-                             return row->m_panel.handleDrop(value, at);
-                         }),
-                         this);
-        gtk_widget_add_controller(GTK_WIDGET(gobj()), GTK_EVENT_CONTROLLER(target));
+        g_object_set_data(G_OBJECT(gobj()), kRowKey, this);
     }
 
-    void bind(const Track &track, int position, bool current, bool playing)
+    // Rows are bound to the queue entry's stable id rather than to a position:
+    // inserting or removing rows elsewhere shifts positions without rebinding.
+    uint64_t id() const { return m_id; }
+
+    void bind(const Track &track, uint64_t id, bool current, bool playing)
     {
-        m_position = position;
+        m_id = id;
         m_title.set_text(track.displayTitle());
         m_subtitle.set_text(track.displayArtist() + " — " + track.displayAlbum());
         m_duration.set_text(Format::duration(track.durationMs));
@@ -80,7 +85,7 @@ public:
         }
     }
 
-    void unbind() { m_position = -1; }
+    void unbind() { m_id = 0; }
 
 private:
     QueuePanel &m_panel;
@@ -89,7 +94,7 @@ private:
     Gtk::Label m_title;
     Gtk::Label m_subtitle;
     Gtk::Label m_duration;
-    int m_position = -1;
+    uint64_t m_id = 0;
 };
 
 QueuePanel::QueuePanel(PlayQueue &queue)
@@ -182,6 +187,35 @@ QueuePanel::QueuePanel(PlayQueue &queue)
                      this);
     gtk_widget_add_controller(GTK_WIDGET(m_stack.gobj()), GTK_EVENT_CONTROLLER(target));
 
+    // Drops on the list insert where the indicator shows; the list's own
+    // target replaces per-row targets so that the gaps between rows count too.
+    GtkDropTarget *listTarget = DragData::newDropTarget();
+    g_signal_connect(listTarget, "motion", G_CALLBACK(+[](GtkDropTarget *, double, double y,
+                                                          gpointer self) -> GdkDragAction {
+                         auto *panel = static_cast<QueuePanel *>(self);
+                         panel->updateDropIndicator(y);
+                         panel->setAutoscroll(y);
+                         return GDK_ACTION_COPY;
+                     }),
+                     this);
+    g_signal_connect(listTarget, "leave", G_CALLBACK(+[](GtkDropTarget *, gpointer self) {
+                         auto *panel = static_cast<QueuePanel *>(self);
+                         panel->clearDropIndicator();
+                         panel->stopAutoscroll();
+                     }),
+                     this);
+    g_signal_connect(listTarget, "drop", G_CALLBACK(+[](GtkDropTarget *, const GValue *value, double, double y,
+                                                        gpointer self) -> gboolean {
+                         auto *panel = static_cast<QueuePanel *>(self);
+                         panel->clearDropIndicator();
+                         panel->stopAutoscroll();
+                         GtkWidget *item = nullptr;
+                         bool below = false;
+                         return panel->handleDrop(value, panel->dropRowAt(y, &item, &below));
+                     }),
+                     this);
+    gtk_widget_add_controller(GTK_WIDGET(m_list.gobj()), GTK_EVENT_CONTROLLER(listTarget));
+
     m_queue.signalRowsInserted.connect(sigc::mem_fun(*this, &QueuePanel::onRowsInserted));
     m_queue.signalRowsRemoved.connect(sigc::mem_fun(*this, &QueuePanel::onRowsRemoved));
     m_queue.signalReset.connect(sigc::mem_fun(*this, &QueuePanel::rebuild));
@@ -192,12 +226,19 @@ QueuePanel::QueuePanel(PlayQueue &queue)
     rebuild();
 }
 
+QueuePanel::~QueuePanel()
+{
+    stopAutoscroll();
+    clearDropIndicator();
+}
+
 void QueuePanel::bindRow(QueueRow &row, int position)
 {
     if (position < 0 || position >= m_queue.count())
         return;
-    const bool current = m_queue.idAt(position) == m_queue.currentId() && m_queue.currentId() != 0;
-    row.bind(m_queue.trackAt(position), position, current, m_playing);
+    const uint64_t id = m_queue.idAt(position);
+    const bool current = id == m_queue.currentId() && m_queue.currentId() != 0;
+    row.bind(m_queue.trackAt(position), id, current, m_playing);
 }
 
 void QueuePanel::rebuild()
@@ -312,8 +353,11 @@ void QueuePanel::removeSelected()
     }
 }
 
-std::vector<uint64_t> QueuePanel::dragIdsFor(int row) const
+std::vector<uint64_t> QueuePanel::dragIdsFor(uint64_t id) const
 {
+    const int row = m_queue.rowOfId(id);
+    if (row < 0)
+        return {};
     std::vector<uint64_t> ids;
     std::vector<int> rows = selectedRows();
     if (std::find(rows.begin(), rows.end(), row) == rows.end())
@@ -347,4 +391,107 @@ bool QueuePanel::handleDrop(const GValue *value, int row)
         return true;
     }
     return false;
+}
+
+int QueuePanel::dropRowAt(double y, GtkWidget **item, bool *below) const
+{
+    *item = nullptr;
+    *below = false;
+    GtkWidget *list = GTK_WIDGET(m_list.gobj());
+
+    // The list view's children are its row widgets, each holding a QueueRow.
+    // Pick the one under the pointer, or the nearest when over a gap.
+    double bestDistance = INFINITY;
+    int bestRow = -1;
+    for (GtkWidget *child = gtk_widget_get_first_child(list); child; child = gtk_widget_get_next_sibling(child)) {
+        if (!gtk_widget_get_mapped(child))
+            continue;
+        GtkWidget *content = gtk_widget_get_first_child(child);
+        auto *row = content ? static_cast<QueueRow *>(g_object_get_data(G_OBJECT(content), kRowKey)) : nullptr;
+        if (!row || row->id() == 0)
+            continue;
+        const int queueRow = m_queue.rowOfId(row->id());
+        graphene_rect_t bounds;
+        if (queueRow < 0 || !gtk_widget_compute_bounds(child, list, &bounds))
+            continue;
+        const double top = bounds.origin.y;
+        const double bottom = top + bounds.size.height;
+        const double distance = y < top ? top - y : (y > bottom ? y - bottom : 0.0);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            bestRow = queueRow;
+            *item = child;
+            *below = y > top + bounds.size.height / 2.0;
+        }
+    }
+    if (bestRow < 0)
+        return -1;
+    const int at = bestRow + (*below ? 1 : 0);
+    return at >= m_queue.count() ? -1 : at;
+}
+
+void QueuePanel::updateDropIndicator(double y)
+{
+    m_dropY = y;
+    GtkWidget *item = nullptr;
+    bool below = false;
+    dropRowAt(y, &item, &below);
+    if (item != m_dropItem)
+        clearDropIndicator();
+    if (!item)
+        return;
+    if (!m_dropItem) {
+        m_dropItem = item;
+        g_object_add_weak_pointer(G_OBJECT(m_dropItem), reinterpret_cast<gpointer *>(&m_dropItem));
+    }
+    gtk_widget_remove_css_class(item, below ? "drop-above" : "drop-below");
+    gtk_widget_add_css_class(item, below ? "drop-below" : "drop-above");
+}
+
+void QueuePanel::clearDropIndicator()
+{
+    if (!m_dropItem)
+        return;
+    gtk_widget_remove_css_class(m_dropItem, "drop-above");
+    gtk_widget_remove_css_class(m_dropItem, "drop-below");
+    g_object_remove_weak_pointer(G_OBJECT(m_dropItem), reinterpret_cast<gpointer *>(&m_dropItem));
+    m_dropItem = nullptr;
+}
+
+void QueuePanel::setAutoscroll(double y)
+{
+    // The list view scrolls itself, so its coordinates are the visible area.
+    const double height = m_list.get_height();
+    double speed = 0;
+    if (y < kAutoscrollEdge)
+        speed = -(kAutoscrollEdge - y) / kAutoscrollEdge;
+    else if (y > height - kAutoscrollEdge)
+        speed = (y - (height - kAutoscrollEdge)) / kAutoscrollEdge;
+    m_autoscrollSpeed = std::clamp(speed, -1.0, 1.0) * kAutoscrollMaxStep;
+
+    if (m_autoscrollSpeed == 0) {
+        stopAutoscroll();
+        return;
+    }
+    if (m_autoscrollSource)
+        return;
+    m_autoscrollSource = g_timeout_add(16, +[](gpointer self) -> gboolean {
+        auto *panel = static_cast<QueuePanel *>(self);
+        auto adjustment = panel->m_scroller.get_vadjustment();
+        const double max = adjustment->get_upper() - adjustment->get_page_size();
+        const double value = std::clamp(adjustment->get_value() + panel->m_autoscrollSpeed, 0.0, std::max(0.0, max));
+        adjustment->set_value(value);
+        // The pointer did not move, but the rows under it did.
+        panel->updateDropIndicator(panel->m_dropY);
+        return G_SOURCE_CONTINUE;
+    }, this);
+}
+
+void QueuePanel::stopAutoscroll()
+{
+    m_autoscrollSpeed = 0;
+    if (m_autoscrollSource) {
+        g_source_remove(m_autoscrollSource);
+        m_autoscrollSource = 0;
+    }
 }
